@@ -25,12 +25,21 @@ export default defineConfig({
   reporter: "html",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    /* Base URL to use in actions like `await page.goto('')`. */
+    /* Đường dẫn gốc của ứng dụng */
     // baseURL: 'http://localhost:3000',
+    /* Base URL to use in actions like `await page.goto('')`. */
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: "on-first-retry",
-    video: "on",
+    // trace: "on-first-retry",
+    /* Chỉ định lấy trace nếu test bị fail (Tối ưu hơn on-first-retry) */
+    trace: "retain-on-failure",
+
+    /* Chỉ giữ lại video nếu test bị fail để tiết kiệm bộ nhớ */
+    // video: "on",
+    video: "retain-on-failure",
+
+    /* Tự động chụp ảnh màn hình (screenshot) khi test bị fail */
+    screenshot: "only-on-failure",
   },
 
   /* Configure projects for major browsers */

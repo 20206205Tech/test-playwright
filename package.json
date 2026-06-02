@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-   "test": "playwright test",
-    "report": "playwright show-report"
+    "test": "playwright test",
+    "report": "playwright show-report",
+    "test-and-report": "playwright test && playwright show-report"
   },
   "keywords": [],
   "author": "",

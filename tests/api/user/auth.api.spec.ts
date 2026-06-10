@@ -146,6 +146,77 @@ test.describe('Kiểm thử API Auth (Supabase Auth) sử dụng Playwright Auth
     expect(data[0].full_name).toBe(newName);
   });
 
+  test('Update Profile - Tải lên ảnh đại diện (Upload Avatar) và cập nhật avatar_url vào Profile', async ({ request }) => {
+    if (!accessToken) {
+      test.skip();
+    }
+
+    // 1. Lấy userId từ /auth/v1/user
+    const userResponse = await request.get(`${BASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    const userData = await userResponse.json();
+    const userId = userData.id;
+
+    // 2. Đọc file ảnh từ thư mục data/avatars
+    const imgPath = path.join(process.cwd(), 'data/avatars/1.jpg');
+    if (!fs.existsSync(imgPath)) {
+      console.warn(`[Warning] Không tìm thấy file ảnh test tại ${imgPath}`);
+      test.skip();
+    }
+    const fileBuffer = fs.readFileSync(imgPath);
+
+    // 3. Chuẩn bị thông tin upload
+    const fileName = `${userId}_${Math.random().toString(36).substring(2)}.jpg`;
+    const uploadUrl = `${BASE_URL}/storage/v1/object/avatars/${fileName}`;
+
+    // 4. Gửi request upload ảnh (binary POST)
+    const response = await request.post(uploadUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'image/jpeg',
+      },
+      data: fileBuffer,
+    });
+
+    expect(response.status()).toBe(200);
+    const uploadData = await response.json();
+    expect(uploadData.Key || uploadData.key).toBeDefined();
+
+    // 5. Kiểm tra xem ảnh có thể truy cập công khai qua link public không
+    const publicUrl = `${BASE_URL}/storage/v1/object/public/avatars/${fileName}`;
+    const checkResponse = await request.get(publicUrl);
+    expect(checkResponse.status()).toBe(200);
+
+    // 6. Cập nhật trường avatar_url trong bảng profiles của Database
+    const patchResponse = await request.patch(`${BASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'return=representation',
+      },
+      data: {
+        avatar_url: publicUrl,
+      },
+    });
+    expect(patchResponse.status()).toBe(200);
+    const patchData = await patchResponse.json();
+    expect(patchData[0].avatar_url).toBe(publicUrl);
+
+    // 7. Lấy lại profile một lần nữa (GET) để chắc chắn Database đã cập nhật
+    const getProfileResponse = await request.get(`${BASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    expect(getProfileResponse.status()).toBe(200);
+    const profileData = await getProfileResponse.json();
+    expect(profileData[0].avatar_url).toBe(publicUrl);
+
+    console.log(`[Upload & Save Avatar Test] ✅ Đã upload ảnh, lưu avatar_url và xác thực thành công trong cơ sở dữ liệu: ${publicUrl}`);
+  });
+
   test('Update Password - Thay đổi mật khẩu người dùng', async ({ request }) => {
     if (!accessToken) {
       test.skip();

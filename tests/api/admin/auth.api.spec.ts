@@ -1,115 +1,171 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 
-// Đường dẫn API của Supabase Auth Service
+// API Base URL of Supabase Auth Service
 const BASE_URL = process.env.API_BASE_URL || 'https://api.20206205.tech/api/prod/supabase-auth-service';
 
-test.describe('Kiểm thử API Auth (Supabase Auth)', () => {
-  const uniqueEmail = `playwright_test_${Date.now()}@example.com`;
-  const password = 'SecurePassword123!';
-  let accessToken = '';
-  let refreshToken = '';
+// Trích xuất Access Token từ file state của Playwright
+function getAccessToken(): string {
+  try {
+    const filePath = path.join(process.cwd(), 'playwright/.auth/user.json');
+    if (!fs.existsSync(filePath)) {
+      return '';
+    }
+    const state = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const origins = state.origins || [];
+    for (const item of origins) {
+      const authTokensItem = item.localStorage?.find((x: any) => x.name === 'auth_tokens');
+      if (authTokensItem) {
+        const parsed = JSON.parse(authTokensItem.value);
+        return parsed.access_token || '';
+      }
+    }
+  } catch (error) {
+    console.error('Lỗi đọc token từ playwright/.auth/user.json:', error);
+  }
+  return '';
+}
 
-  test('1. Đăng ký tài khoản mới (Sign Up) thành công', async ({ request }) => {
+test.describe('Kiểm thử API Auth (Supabase Auth) sử dụng Playwright Auth State', () => {
+  let accessToken = '';
+
+  test.beforeAll(() => {
+    accessToken = getAccessToken();
+    if (accessToken) {
+      console.log('[Auth API Test] Đã tìm thấy Access Token từ playwright/.auth/user.json');
+    } else {
+      console.warn('[Auth API Test] Không tìm thấy Access Token. Một số test case yêu cầu xác thực sẽ bị skip.');
+    }
+  });
+
+  // --- PUBLIC ENDPOINTS (Không yêu cầu đăng nhập) ---
+  
+  test('SignUp - Đăng ký tài khoản với email đã tồn tại (nên báo lỗi)', async ({ request }) => {
+    // Đọc email của tài khoản đã đăng ký trong setup từ account.json
+    let existingEmail = 'already_exists@example.com';
+    try {
+      const accountFile = path.join(process.cwd(), 'playwright/.auth/account.json');
+      if (fs.existsSync(accountFile)) {
+        const account = JSON.parse(fs.readFileSync(accountFile, 'utf-8'));
+        existingEmail = account.email;
+      }
+    } catch {}
+
     const response = await request.post(`${BASE_URL}/auth/v1/signup`, {
       data: {
-        email: uniqueEmail,
-        password: password,
+        email: existingEmail,
+        password: 'SomePassword123!',
       },
     });
 
-    expect(response.status()).toBeLessThan(300);
+    // Supabase trả về lỗi 400 Bad Request khi email đã tồn tại
+    expect(response.status()).toBe(400);
     const data = await response.json();
-    
-    expect(data).toHaveProperty('id');
-    expect(data.email).toBe(uniqueEmail);
+    expect(data.msg || data.message).toBeDefined();
   });
 
-  test('2. Đăng nhập với thông tin mật khẩu không chính xác (Invalid Credentials)', async ({ request }) => {
+  test('Login - Đăng nhập thất bại khi sai thông tin', async ({ request }) => {
     const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=password`, {
       data: {
-        email: uniqueEmail,
+        email: 'nonexistent_user_12345@example.com',
         password: 'WrongPassword123!',
       },
     });
 
-    // Supabase trả về 400 Bad Request kèm thông tin lỗi khi sai mật khẩu
     expect(response.status()).toBe(400);
     const data = await response.json();
     expect(data.error).toBe('invalid_grant');
   });
 
-  test('3. Đăng nhập bằng Email và Mật khẩu (Sign In)', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=password`, {
-      data: {
-        email: uniqueEmail,
-        password: password,
-      },
-    });
-
-    // Ghi chú: Nếu hệ thống bật chế độ bắt buộc xác thực email, API này có thể trả về lỗi 400 (Email not confirmed).
-    // Nếu tắt xác thực email, API sẽ trả về 200 OK cùng token.
-    if (response.status() === 200) {
-      const data = await response.json();
-      expect(data).toHaveProperty('access_token');
-      expect(data).toHaveProperty('refresh_token');
-      
-      accessToken = data.access_token;
-      refreshToken = data.refresh_token;
-    } else {
-      expect(response.status()).toBe(400);
-      const data = await response.json();
-      expect(data.error_description || data.msg).toContain('Email not confirmed');
-      console.warn('⚠️ Đăng nhập không thành công do tài khoản cần xác nhận Email.');
-    }
-  });
-
-  test('4. Yêu cầu khôi phục mật khẩu (Recover Password)', async ({ request }) => {
+  test('Recover Password - Yêu cầu khôi phục mật khẩu gửi thành công', async ({ request }) => {
     const response = await request.post(`${BASE_URL}/auth/v1/recover`, {
       data: {
-        email: uniqueEmail,
+        email: 'test_recovery@example.com',
       },
     });
 
     expect(response.status()).toBeLessThan(300);
   });
 
-  test('5. Truy cập thông tin Profiles - Khi không có token (401 Unauthorized)', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/rest/v1/profiles?id=eq.00000000-0000-0000-0000-000000000000`);
-    expect(response.status()).toBe(401);
-  });
+  // --- PRIVATE ENDPOINTS (Yêu cầu đăng nhập - sử dụng token từ /playwright/.auth/) ---
 
-  test('6. Truy cập thông tin Profiles - Khi có token hợp lệ', async ({ request }) => {
+  test('Get Profile - Lấy thông tin hồ sơ của chính mình', async ({ request }) => {
     if (!accessToken) {
-      test.skip(); // Bỏ qua nếu bước đăng nhập không tạo được token (do cần xác thực email)
+      test.skip();
     }
 
-    const response = await request.get(`${BASE_URL}/rest/v1/profiles`, {
+    // Lấy userId bằng cách gọi /auth/v1/user trước
+    const userResponse = await request.get(`${BASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    expect(userResponse.status()).toBe(200);
+    const userData = await userResponse.json();
+    const userId = userData.id;
+
+    // Truy vấn profiles từ Supabase Database REST API
+    const response = await request.get(`${BASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
     });
 
     expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(Array.isArray(data)).toBeTruthy();
   });
 
-  test('7. Làm mới Access Token (Refresh Token)', async ({ request }) => {
-    if (!refreshToken) {
+  test('Update Profile - Cập nhật thông tin hồ sơ', async ({ request }) => {
+    if (!accessToken) {
       test.skip();
     }
 
-    const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    const userResponse = await request.get(`${BASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    const userData = await userResponse.json();
+    const userId = userData.id;
+
+    const newName = `Playwright User ${Date.now()}`;
+    const response = await request.patch(`${BASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'return=representation',
+      },
       data: {
-        refresh_token: refreshToken,
+        full_name: newName,
       },
     });
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-    expect(data).toHaveProperty('access_token');
-    expect(data).toHaveProperty('refresh_token');
+    expect(data[0].full_name).toBe(newName);
   });
 
-  test('8. Đăng xuất tài khoản (Logout)', async ({ request }) => {
+  test('Update Password - Thay đổi mật khẩu người dùng', async ({ request }) => {
+    if (!accessToken) {
+      test.skip();
+    }
+
+    const response = await request.put(`${BASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      data: {
+        password: 'NewSecurePassword123!',
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data).toHaveProperty('id');
+  });
+
+  test('Logout - Đăng xuất tài khoản', async ({ request }) => {
     if (!accessToken) {
       test.skip();
     }

@@ -19,8 +19,8 @@ test.describe('Kiểm thử Giao diện MFA (UI E2E MFA)', () => {
     await page.goto('/profile');
 
     // 1. Tìm container chứa thiết bị MFA đang hoạt động và nút xóa bên trong nó
-    const mfaSection = page.locator('div').filter({ has: page.getByRole('heading', { name: /Bảo mật 2 bước|MFA/i }) }).first();
-    const deleteButton = mfaSection.locator('button').filter({ has: page.locator('svg') }).first();
+    const factorRow = page.locator('div.rounded-xl').filter({ hasText: 'Đang hoạt động (TOTP)' });
+    const deleteButton = factorRow.locator('button');
     await expect(deleteButton).toBeVisible();
     await deleteButton.click();
 

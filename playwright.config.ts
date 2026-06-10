@@ -27,6 +27,8 @@ export default defineConfig({
   use: {
     /* Đường dẫn gốc của ứng dụng */
     // baseURL: 'http://localhost:3000',
+    // baseURL: 'https://api.20206205.tech/api/prod/supabase-auth-service',
+    baseURL: "https://20206205.tech",
     /* Base URL to use in actions like `await page.goto('')`. */
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
@@ -45,26 +47,26 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
-      name: 'setup',
+      name: "setup",
       testMatch: /auth\.setup\.ts/,
     },
     {
       name: "chromium",
-      use: { 
+      use: {
         ...devices["Desktop Chrome"],
         // Đường dẫn file lưu trữ session đăng nhập
-        storageState: 'playwright/.auth/user.json',
+        storageState: "playwright/.auth/user.json",
       },
-      dependencies: ['setup'],
+      dependencies: ["setup"],
     },
 
     {
       name: "firefox",
-      use: { 
+      use: {
         ...devices["Desktop Firefox"],
-        storageState: 'playwright/.auth/user.json',
+        storageState: "playwright/.auth/user.json",
       },
-      dependencies: ['setup'],
+      dependencies: ["setup"],
     },
 
     {
@@ -74,22 +76,22 @@ export default defineConfig({
 
     /* Test against mobile viewports. */
     {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 5"] },
     },
     {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
+      name: "Mobile Safari",
+      use: { ...devices["iPhone 12"] },
     },
 
     /* Test against branded browsers. */
     {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
+      name: "Microsoft Edge",
+      use: { ...devices["Desktop Edge"], channel: "msedge" },
     },
     {
-      name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      name: "Google Chrome",
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
     },
   ],
 

@@ -5,6 +5,7 @@ import { authenticator } from 'otplib';
  * @param secret Base32 secret key (lấy từ màn hình setup MFA)
  */
 export function generateTOTP(secret: string): string {
+  // Làm sạch secret (bỏ spaces, uppercase)
   const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
   return authenticator.generate(cleanSecret);
 }

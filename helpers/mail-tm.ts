@@ -17,6 +17,7 @@ export async function getDomain(): Promise<string> {
   });
   const data = res.data;
   
+  // mail.tm có thể trả về mảng trực tiếp hoặc JSON-LD với key "hydra:member"
   let domains: Array<{ domain: string }>;
   if (Array.isArray(data)) {
     domains = data;
@@ -36,14 +37,15 @@ export async function getDomain(): Promise<string> {
 }
 
 /**
- * Tạo tài khoản email với prefix
+ * Tạo tài khoản email với prefix (mặc định testuser_)
  */
 export async function createMailAccount(prefix: string = 'testuser_'): Promise<MailAccount> {
   const domain = await getDomain();
   
+  // Dùng chuỗi ngẫu nhiên thuần túy như script Python của user
   const randStr = (len: number = 6) => Math.random().toString(36).substring(2, 2 + len);
   const address = `${prefix}${randStr()}@${domain}`;
-  const password = `Pass${randStr(8)}!`;
+  const password = `Pass${randStr(8)}!`; // Password mạnh hơn tí
 
   try {
     await axios.post(
@@ -79,7 +81,7 @@ export async function getMailToken(address: string, password: string): Promise<s
 }
 
 /**
- * Chờ email mới (poll mỗi 5 giây, timeout 120 giây)
+ * Chờ email mới (poll mỗi 5 giây, timeout 60 giây)
  */
 export async function waitForEmail(
   token: string,
@@ -93,6 +95,7 @@ export async function waitForEmail(
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     
+    // mail.tm trả về JSON-LD với key "hydra:member" hoặc array
     const data = res.data;
     const messages = Array.isArray(data) ? data : data['hydra:member'] || [];
     
@@ -103,6 +106,7 @@ export async function waitForEmail(
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
       
+      // Ưu tiên text nếu html trống (như Supabase thường gửi)
       const text = msgRes.data.text || '';
       const html = msgRes.data.html?.[0] || '';
       return html || text;
@@ -117,8 +121,9 @@ export async function waitForEmail(
  * Trích xuất link xác nhận từ nội dung email HTML hoặc Text
  */
 export function extractConfirmLink(content: string): string {
+  // Tìm URL có chứa token xác nhận (Supabase, Firebase, v.v.)
   const patterns = [
-    /https?:\/\/[^\s"<>]+auth\/v1\/verify\?token=[^\s"<>]+/i,
+    /https?:\/\/[^\s"<>]+auth\/v1\/verify\?token=[^\s"<>]+/i, // Pattern Supabase thực tế
     /href="(https?:\/\/[^"]*verify[^"]*token=[^"]*)"/i,
     /href="(https?:\/\/[^"]*confirmation[^"]*token[^"]*)"/i,
     /https?:\/\/[^\s"<>]*confirm[^\s"<>]+/i,
@@ -129,7 +134,7 @@ export function extractConfirmLink(content: string): string {
     const match = content.match(pattern);
     if (match) {
       const link = match[0].startsWith('href="') ? match[1] : match[0];
-      return link.replace(/&amp;/g, '&').replace(/[\])]+$/, '');
+      return link.replace(/&amp;/g, '&').replace(/[\])]+$/, ''); // Làm sạch link
     }
   }
 

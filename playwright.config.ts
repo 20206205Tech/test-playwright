@@ -37,8 +37,8 @@ export default defineConfig({
     trace: "retain-on-failure",
 
     /* Chỉ giữ lại video nếu test bị fail để tiết kiệm bộ nhớ */
-    // video: "on",
-    video: "retain-on-failure",
+    video: "on",
+    // video: "retain-on-failure",
 
     /* Tự động chụp ảnh màn hình (screenshot) khi test bị fail */
     screenshot: "only-on-failure",

@@ -20,7 +20,7 @@ test.describe('Kiểm thử Giao diện (UI) - Trang cá nhân & Trò chuyện',
     await expect(page).toHaveURL(/\/profile/);
 
     // 2. Kiểm tra xem các trường thông tin cơ bản có hiển thị đúng không
-    const nameInput = page.locator('input').first(); // Ô nhập Họ và tên
+    const nameInput = page.locator('input[placeholder="Tên của bạn"]'); // Ô nhập Họ và tên
     await expect(nameInput).toBeVisible();
     const initialName = await nameInput.inputValue();
     expect(initialName).not.toBe('');
@@ -34,7 +34,7 @@ test.describe('Kiểm thử Giao diện (UI) - Trang cá nhân & Trò chuyện',
     await saveButton.click();
 
     // 5. Kiểm tra thông báo Toast thành công hiển thị
-    const toastSuccess = page.getByText(/Thành công|Đã cập nhật/i);
+    const toastSuccess = page.getByText('Đã cập nhật thông tin.', { exact: true });
     await expect(toastSuccess).toBeVisible({ timeout: 10_000 });
 
     // 6. Reload trang để xác minh dữ liệu đã được lưu thành công trên Server
@@ -63,7 +63,7 @@ test.describe('Kiểm thử Giao diện (UI) - Trang cá nhân & Trò chuyện',
     await saveButton.click();
 
     // 5. Chờ thông báo thành công
-    const toastSuccess = page.getByText(/Thành công|Đã cập nhật/i);
+    const toastSuccess = page.getByText('Đã cập nhật thông tin.', { exact: true });
     await expect(toastSuccess).toBeVisible();
 
     // 6. Tải lại trang để xác nhận URL ảnh vẫn được lưu trữ

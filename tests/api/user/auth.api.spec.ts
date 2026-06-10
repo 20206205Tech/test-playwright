@@ -217,6 +217,73 @@ test.describe('Kiểm thử API Auth (Supabase Auth) sử dụng Playwright Auth
     console.log(`[Upload & Save Avatar Test] ✅ Đã upload ảnh, lưu avatar_url và xác thực thành công trong cơ sở dữ liệu: ${publicUrl}`);
   });
 
+  test('Update Profile - Tải lên ảnh đại diện từ URL trong data.json', async ({ request }) => {
+    if (!accessToken) {
+      test.skip();
+    }
+
+    // 1. Lấy userId từ /auth/v1/user
+    const userResponse = await request.get(`${BASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    const userData = await userResponse.json();
+    const userId = userData.id;
+
+    // 2. Đọc file cấu hình data.json và parse danh sách URLs
+    const configPath = path.join(process.cwd(), 'data/avatars/data.json');
+    if (!fs.existsSync(configPath)) {
+      console.warn(`[Warning] Không tìm thấy cấu hình data.json tại ${configPath}`);
+      test.skip();
+    }
+    const urls = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(Array.isArray(urls)).toBeTruthy();
+    expect(urls.length).toBeGreaterThan(0);
+
+    const targetUrl = urls[0];
+
+    // 3. Tải xuống ảnh từ URL từ xa (remote URL)
+    const downloadResponse = await request.get(targetUrl);
+    expect(downloadResponse.status()).toBe(200);
+    const fileBuffer = await downloadResponse.body();
+
+    // 4. Chuẩn bị thông tin upload lên Supabase
+    const fileExt = targetUrl.split('.').pop() || 'jpg';
+    const fileName = `${userId}_remote_${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const uploadUrl = `${BASE_URL}/storage/v1/object/avatars/${fileName}`;
+
+    // 5. Upload tệp nhị phân tải được lên Supabase Storage
+    const uploadResponse = await request.post(uploadUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+      },
+      data: fileBuffer,
+    });
+
+    expect(uploadResponse.status()).toBe(200);
+    const uploadData = await uploadResponse.json();
+    expect(uploadData.Key || uploadData.key).toBeDefined();
+
+    // 6. Cập nhật trường avatar_url trong cơ sở dữ liệu
+    const publicUrl = `${BASE_URL}/storage/v1/object/public/avatars/${fileName}`;
+    const patchResponse = await request.patch(`${BASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'return=representation',
+      },
+      data: {
+        avatar_url: publicUrl,
+      },
+    });
+    expect(patchResponse.status()).toBe(200);
+    const patchData = await patchResponse.json();
+    expect(patchData[0].avatar_url).toBe(publicUrl);
+
+    console.log(`[Upload Remote Avatar Test] ✅ Đã tải xuống từ: ${targetUrl}, upload lên Supabase và cập nhật profile thành công: ${publicUrl}`);
+  });
+
   test('Update Password - Thay đổi mật khẩu người dùng', async ({ request }) => {
     if (!accessToken) {
       test.skip();

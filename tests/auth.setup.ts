@@ -77,8 +77,8 @@ setup('Đăng ký, xác nhận Email, đăng nhập và lưu Auth State', async 
   // 9. Điều hướng tới link xác nhận để hoàn tất đăng ký của Supabase
   await page.goto(confirmLink);
 
-  // 10. Chờ chuyển hướng về trang /chat hoặc /auth/mfa
-  await page.waitForURL(/\/(login|chat|auth)/, { timeout: 30_000 });
+  // 10. Chờ chuyển hướng về trang /chat hoặc /auth/mfa hoặc /login (tránh khớp sớm với auth/callback)
+  await page.waitForURL(/\/(login|chat|auth\/mfa)/, { timeout: 45_000 });
   console.log(`[Setup] Redirect đến URL: ${page.url()}`);
 
   // 11. Nếu trang chuyển về /login, tiến hành đăng nhập bằng tài khoản vừa tạo

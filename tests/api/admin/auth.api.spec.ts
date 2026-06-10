@@ -1,91 +1,125 @@
-Viewed auth.service.ts:1-203
-Viewed auth-mfa.service.ts:1-182
+import { test, expect } from '@playwright/test';
 
-Dựa trên mã nguồn của hai tệp tin [auth.service.ts](file:///C:/Users/Admin/Documents/GitHub/code-fe-ui/services/auth.service.ts) và [auth-mfa.service.ts](file:///C:/Users/Admin/Documents/GitHub/code-fe-ui/services/auth-mfa.service.ts), hệ thống sử dụng **Supabase** để xử lý các nhóm chức năng chính bao gồm: **Xác thực & Phân quyền (Authentication)**, **Xác thực 2 yếu tố (Multi-Factor Authentication - MFA)**, **Quản lý dữ liệu người dùng (Database REST API)** và **Quản lý tệp tin (Storage)**.
+// Đường dẫn API của Supabase Auth Service
+const BASE_URL = process.env.API_BASE_URL || 'https://api.20206205.tech/api/prod/supabase-auth-service';
 
-Dưới đây là mô tả chi tiết các chức năng được triển khai:
+test.describe('Kiểm thử API Auth (Supabase Auth)', () => {
+  const uniqueEmail = `playwright_test_${Date.now()}@example.com`;
+  const password = 'SecurePassword123!';
+  let accessToken = '';
+  let refreshToken = '';
 
----
+  test('1. Đăng ký tài khoản mới (Sign Up) thành công', async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/auth/v1/signup`, {
+      data: {
+        email: uniqueEmail,
+        password: password,
+      },
+    });
 
-### I. Xác thực & Quản lý tài khoản (Supabase Auth)
-Được triển khai trong tệp [auth.service.ts](file:///C:/Users/Admin/Documents/GitHub/code-fe-ui/services/auth.service.ts), hệ thống sử dụng các API Auth của Supabase để xử lý toàn bộ luồng đăng nhập, đăng ký và bảo mật tài khoản:
+    expect(response.status()).toBeLessThan(300);
+    const data = await response.json();
+    
+    expect(data).toHaveProperty('id');
+    expect(data.email).toBe(uniqueEmail);
+  });
 
-1. **Đăng nhập bằng Google (Google OAuth2 / SSO)** (`loginWithGoogle`):
-   - Tạo URL và chuyển hướng người dùng đến trang ủy quyền của Google thông qua Supabase Auth Provider.
-   - *Endpoint sử dụng*: `/auth/v1/authorize?provider=google&redirect_to={redirectUrl}`
+  test('2. Đăng nhập với thông tin mật khẩu không chính xác (Invalid Credentials)', async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=password`, {
+      data: {
+        email: uniqueEmail,
+        password: 'WrongPassword123!',
+      },
+    });
 
-2. **Đăng nhập bằng Email và Mật khẩu** (`loginWithEmailPassword`):
-   - Cho phép người dùng đăng nhập bằng tài khoản email thông thường. Trả về thông tin Access Token và Refresh Token nếu thành công.
-   - *Endpoint sử dụng*: `/auth/v1/token?grant_type=password`
+    // Supabase trả về 400 Bad Request kèm thông tin lỗi khi sai mật khẩu
+    expect(response.status()).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBe('invalid_grant');
+  });
 
-3. **Đăng ký tài khoản mới** (`signUp`):
-   - Tạo tài khoản mới bằng Email và Mật khẩu, hỗ trợ gửi email xác nhận tài khoản thông qua đường dẫn chuyển hướng sau khi kích hoạt thành công (`redirect_to`).
-   - *Endpoint sử dụng*: `/auth/v1/signup`
+  test('3. Đăng nhập bằng Email và Mật khẩu (Sign In)', async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=password`, {
+      data: {
+        email: uniqueEmail,
+        password: password,
+      },
+    });
 
-4. **Khôi phục mật khẩu** (`recoverPassword`):
-   - Gửi yêu cầu khôi phục mật khẩu tới email của người dùng. Hệ thống sẽ gửi một email chứa liên kết để xác thực và chuyển hướng người dùng về trang đổi mật khẩu.
-   - *Endpoint sử dụng*: `/auth/v1/recover`
+    // Ghi chú: Nếu hệ thống bật chế độ bắt buộc xác thực email, API này có thể trả về lỗi 400 (Email not confirmed).
+    // Nếu tắt xác thực email, API sẽ trả về 200 OK cùng token.
+    if (response.status() === 200) {
+      const data = await response.json();
+      expect(data).toHaveProperty('access_token');
+      expect(data).toHaveProperty('refresh_token');
+      
+      accessToken = data.access_token;
+      refreshToken = data.refresh_token;
+    } else {
+      expect(response.status()).toBe(400);
+      const data = await response.json();
+      expect(data.error_description || data.msg).toContain('Email not confirmed');
+      console.warn('⚠️ Đăng nhập không thành công do tài khoản cần xác nhận Email.');
+    }
+  });
 
-5. **Cập nhật mật khẩu mới** (`updateUserPassword`):
-   - Cho phép người dùng đổi mật khẩu mới sau khi đã đăng nhập (hoặc sau khi click vào liên kết khôi phục mật khẩu).
-   - *Endpoint sử dụng*: `/auth/v1/user` (HTTP PUT)
+  test('4. Yêu cầu khôi phục mật khẩu (Recover Password)', async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/auth/v1/recover`, {
+      data: {
+        email: uniqueEmail,
+      },
+    });
 
-6. **Làm mới Access Token** (`refreshAccessToken`):
-   - Sử dụng `refresh_token` để lấy một `access_token` mới khi token cũ hết hạn mà không bắt người dùng phải đăng nhập lại.
-   - *Endpoint sử dụng*: `/auth/v1/token?grant_type=refresh_token`
+    expect(response.status()).toBeLessThan(300);
+  });
 
-7. **Đăng xuất** (`logout`):
-   - Hủy phiên làm việc hiện tại của người dùng trên hệ thống Supabase.
-   - *Endpoint sử dụng*: `/auth/v1/logout`
+  test('5. Truy cập thông tin Profiles - Khi không có token (401 Unauthorized)', async ({ request }) => {
+    const response = await request.get(`${BASE_URL}/rest/v1/profiles?id=eq.00000000-0000-0000-0000-000000000000`);
+    expect(response.status()).toBe(401);
+  });
 
----
+  test('6. Truy cập thông tin Profiles - Khi có token hợp lệ', async ({ request }) => {
+    if (!accessToken) {
+      test.skip(); // Bỏ qua nếu bước đăng nhập không tạo được token (do cần xác thực email)
+    }
 
-### II. Xác thực 2 yếu tố (Supabase Multi-Factor Authentication - MFA)
-Được triển khai trong tệp [auth-mfa.service.ts](file:///C:/Users/Admin/Documents/GitHub/code-fe-ui/services/auth-mfa.service.ts), hệ thống hỗ trợ phương thức xác thực hai yếu tố **TOTP** (Time-based One-Time Password - như Google Authenticator hay Authy) bằng các API nâng cao của Supabase:
+    const response = await request.get(`${BASE_URL}/rest/v1/profiles`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
-1. **Đăng ký thiết bị xác thực MFA mới** (`enrollMFA`):
-   - Khởi tạo quá trình liên kết thiết bị xác thực mới. API trả về mã QR (`qr_code`), mã bí mật (`secret`), và chuỗi URI để người dùng quét trên ứng dụng Authenticator.
-   - *Endpoint sử dụng*: `/auth/v1/factors` (HTTP POST)
+    expect(response.status()).toBe(200);
+  });
 
-2. **Tạo thử thách xác thực** (`challengeMFA`):
-   - Tạo một thử thách xác thực (challenge) dựa trên ID thiết bị MFA (`factorId`) để chuẩn bị so khớp với mã OTP người dùng nhập.
-   - *Endpoint sử dụng*: `/auth/v1/factors/{factorId}/challenge`
+  test('7. Làm mới Access Token (Refresh Token)', async ({ request }) => {
+    if (!refreshToken) {
+      test.skip();
+    }
 
-3. **Xác thực mã OTP** (`verifyMFA`):
-   - Kiểm tra mã OTP gồm 6 chữ số người dùng nhập có khớp với thử thách hiện tại không. Nếu đúng, Supabase sẽ nâng cấp phiên đăng nhập (tăng cấp bảo mật cho Access Token).
-   - *Endpoint sử dụng*: `/auth/v1/factors/{factorId}/verify`
+    const response = await request.post(`${BASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      data: {
+        refresh_token: refreshToken,
+      },
+    });
 
-4. **Lấy danh sách các yếu tố MFA** (`listFactors`):
-   - Lấy thông tin tài khoản người dùng để lọc ra danh sách các thiết bị/yếu tố xác thực đã liên kết, phân loại thành: tất cả thiết bị (`all`) và các thiết bị đã kích hoạt thành công (`active`).
-   - *Endpoint sử dụng*: `/auth/v1/user`
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data).toHaveProperty('access_token');
+    expect(data).toHaveProperty('refresh_token');
+  });
 
-5. **Hủy liên kết/Xóa thiết bị MFA** (`unenrollFactor`):
-   - Xóa một thiết bị xác thực MFA khỏi tài khoản người dùng.
-   - *Endpoint sử dụng*: `/auth/v1/factors/{factorId}` (HTTP DELETE)
+  test('8. Đăng xuất tài khoản (Logout)', async ({ request }) => {
+    if (!accessToken) {
+      test.skip();
+    }
 
-6. **Cập nhật tên hiển thị của thiết bị MFA** (`updateFactor`):
-   - Đổi tên hiển thị (`friendly_name`) của thiết bị xác thực (ví dụ: "Điện thoại cá nhân").
-   - *Endpoint sử dụng*: `/auth/v1/factors/{factorId}` (HTTP PUT)
+    const response = await request.post(`${BASE_URL}/auth/v1/logout`, {}, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
----
-
-### III. Quản lý Hồ sơ người dùng (Supabase Database - PostgREST API)
-Hệ thống sử dụng cơ chế RESTful API tự động sinh từ PostgreSQL của Supabase (PostgREST) để thực hiện các thao tác CRUD trên bảng cơ sở dữ liệu `profiles`:
-
-1. **Lấy thông tin hồ sơ** (`getProfile`):
-   - Truy vấn thông tin chi tiết hồ sơ người dùng (như tên đầy đủ, ảnh đại diện) từ bảng `profiles` dựa vào `userId`.
-   - *Endpoint sử dụng*: `/rest/v1/profiles?id=eq.{userId}` (HTTP GET)
-
-2. **Cập nhật thông tin hồ sơ** (`updateProfile`):
-   - Cập nhật các trường thông tin hồ sơ như tên hiển thị (`full_name`) hoặc đường dẫn ảnh đại diện (`avatar_url`).
-   - *Endpoint sử dụng*: `/rest/v1/profiles?id=eq.{userId}` (HTTP PATCH)
-
----
-
-### IV. Quản lý Ảnh đại diện (Supabase Storage)
-Hệ thống sử dụng dịch vụ lưu trữ tệp (Storage) của Supabase để quản lý hình ảnh của người dùng:
-
-1. **Tải lên ảnh đại diện** (`uploadAvatar`):
-   - Tải tệp tin ảnh của người dùng lên thư mục `avatars` trên Supabase Storage. Tên tệp được sinh ngẫu nhiên kết hợp với `userId` để tránh trùng lặp.
-   - *Endpoint tải lên*: `/storage/v1/object/avatars/{fileName}` (HTTP POST)
-   - *Đường dẫn công khai nhận về*: `/storage/v1/object/public/avatars/{fileName}`
+    expect(response.status()).toBeLessThan(300);
+  });
+});

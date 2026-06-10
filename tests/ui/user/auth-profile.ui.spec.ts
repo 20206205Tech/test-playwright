@@ -22,8 +22,8 @@ test.describe('Kiểm thử Giao diện (UI) - Trang cá nhân & Trò chuyện',
     // 2. Kiểm tra xem các trường thông tin cơ bản có hiển thị đúng không
     const nameInput = page.locator('input[placeholder="Tên của bạn"]'); // Ô nhập Họ và tên
     await expect(nameInput).toBeVisible();
+    await expect(nameInput).not.toHaveValue('', { timeout: 10_000 });
     const initialName = await nameInput.inputValue();
-    expect(initialName).not.toBe('');
 
     // 3. Thực hiện thay đổi Họ và tên
     const newName = `Test User ${Date.now()}`;
@@ -45,6 +45,10 @@ test.describe('Kiểm thử Giao diện (UI) - Trang cá nhân & Trò chuyện',
   test('3. Kiểm thử Trang hồ sơ cá nhân (/profile) - Nhập URL ảnh đại diện', async ({ page }) => {
     await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile/);
+
+    // Chờ thông tin profile load xong
+    const nameInput = page.locator('input[placeholder="Tên của bạn"]');
+    await expect(nameInput).not.toHaveValue('', { timeout: 10_000 });
 
     // 1. Tìm ô nhập URL ảnh đại diện vừa được thêm vào giao diện
     const avatarUrlInput = page.getByPlaceholder('https://example.com/avatar.png');

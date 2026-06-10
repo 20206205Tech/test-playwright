@@ -37,6 +37,8 @@ async function handleMfaSetup(page: Page) {
 }
 
 setup('Đăng ký, xác nhận Email, đăng nhập và lưu Auth State', async ({ page }) => {
+  setup.setTimeout(120_000); // Tăng timeout lên 2 phút do phải chờ nhận email và xử lý MFA
+  
   // Tạo thư mục lưu trữ auth state nếu chưa có
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });

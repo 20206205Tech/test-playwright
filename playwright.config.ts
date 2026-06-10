@@ -46,52 +46,68 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    // 1. Setup project (Đăng ký/Đăng nhập và lưu Auth State)
     {
-      name: "setup",
+      name: 'setup',
       testMatch: /auth\.setup\.ts/,
     },
+
+    // 2. Project chạy API tests - CHỈ chạy 1 lần trên Chromium
     {
-      name: "chromium",
+      name: 'api-tests',
+      testMatch: /tests\/api\/.*/,
       use: {
-        ...devices["Desktop Chrome"],
-        // Đường dẫn file lưu trữ session đăng nhập
-        storageState: "playwright/.auth/user.json",
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
       },
-      dependencies: ["setup"],
+      dependencies: ['setup'],
     },
 
+    // 3. Các Projects chạy UI E2E tests - Chạy trên nhiều trình duyệt khác nhau
     {
-      name: "firefox",
+      name: 'chromium-ui',
+      testMatch: /tests\/ui\/.*/,
       use: {
-        ...devices["Desktop Firefox"],
-        storageState: "playwright/.auth/user.json",
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
       },
-      dependencies: ["setup"],
-    },
-
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
+      dependencies: ['setup'],
     },
     {
-      name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
+      name: 'firefox-ui',
+      testMatch: /tests\/ui\/.*/,
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
-
-    /* Test against branded browsers. */
     {
-      name: "Microsoft Edge",
-      use: { ...devices["Desktop Edge"], channel: "msedge" },
+      name: 'webkit-ui',
+      testMatch: /tests\/ui\/.*/,
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
     {
-      name: "Google Chrome",
-      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+      name: 'mobile-chrome-ui',
+      testMatch: /tests\/ui\/.*/,
+      use: {
+        ...devices['Pixel 5'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'mobile-safari-ui',
+      testMatch: /tests\/ui\/.*/,
+      use: {
+        ...devices['iPhone 12'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
   ],
 

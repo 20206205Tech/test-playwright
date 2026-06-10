@@ -18,8 +18,9 @@ test.describe('Kiểm thử Giao diện MFA (UI E2E MFA)', () => {
   test('2. Kiểm tra Dialog cảnh báo Hủy liên kết MFA', async ({ page }) => {
     await page.goto('/profile');
 
-    // 1. Tìm nút xóa (thùng rác) bên cạnh thiết bị MFA
-    const deleteButton = page.locator('button').filter({ has: page.locator('svg') }).last();
+    // 1. Tìm container chứa thiết bị MFA đang hoạt động và nút xóa bên trong nó
+    const factorContainer = page.locator('div').filter({ hasText: 'Đang hoạt động (TOTP)' }).first();
+    const deleteButton = factorContainer.locator('button');
     await expect(deleteButton).toBeVisible();
     await deleteButton.click();
 

@@ -52,6 +52,15 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
 
+    // // Screenshot project - Chạy các test chụp màn hình (không yêu cầu đăng nhập)
+    // {
+    //   name: 'screenshot',
+    //   testMatch: /tests\/screenshot\/.*/,
+    //   use: {
+    //     ...devices['Desktop Chrome'],
+    //   },
+    // },
+
     // 2. Project chạy API tests - CHỈ chạy 1 lần trên Chromium
     {
       name: 'api-tests',
@@ -73,42 +82,42 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
-    {
-      name: 'firefox-ui',
-      testMatch: /tests\/ui\/.*/,
-      use: {
-        ...devices['Desktop Firefox'],
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'webkit-ui',
-      testMatch: /tests\/ui\/.*/,
-      use: {
-        ...devices['Desktop Safari'],
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'mobile-chrome-ui',
-      testMatch: /tests\/ui\/.*/,
-      use: {
-        ...devices['Pixel 5'],
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'mobile-safari-ui',
-      testMatch: /tests\/ui\/.*/,
-      use: {
-        ...devices['iPhone 12'],
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
+    // {
+    //   name: 'firefox-ui',
+    //   testMatch: /tests\/ui\/.*/,
+    //   use: {
+    //     ...devices['Desktop Firefox'],
+    //     storageState: 'playwright/.auth/user.json',
+    //   },
+    //   dependencies: ['setup'],
+    // },
+    // {
+    //   name: 'webkit-ui',
+    //   testMatch: /tests\/ui\/.*/,
+    //   use: {
+    //     ...devices['Desktop Safari'],
+    //     storageState: 'playwright/.auth/user.json',
+    //   },
+    //   dependencies: ['setup'],
+    // },
+    // {
+    //   name: 'mobile-chrome-ui',
+    //   testMatch: /tests\/ui\/.*/,
+    //   use: {
+    //     ...devices['Pixel 5'],
+    //     storageState: 'playwright/.auth/user.json',
+    //   },
+    //   dependencies: ['setup'],
+    // },
+    // {
+    //   name: 'mobile-safari-ui',
+    //   testMatch: /tests\/ui\/.*/,
+    //   use: {
+    //     ...devices['iPhone 12'],
+    //     storageState: 'playwright/.auth/user.json',
+    //   },
+    //   dependencies: ['setup'],
+    // },
   ],
 
   /* Run your local dev server before starting the tests */

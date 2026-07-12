@@ -52,6 +52,15 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
 
+    // Screenshot project - Chạy các test chụp màn hình (không yêu cầu đăng nhập)
+    {
+      name: 'screenshot',
+      testMatch: /tests\/screenshot\/.*/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
     // 2. Project chạy API tests - CHỈ chạy 1 lần trên Chromium
     {
       name: 'api-tests',

@@ -44,7 +44,7 @@ test.describe('Basic registered user - profile, settings, chat', () => {
       .filter({ has: page.locator('svg') });
     await expect(exampleQuestionCards).toHaveCount(3, { timeout: 20_000 });
 
-    await expect(page.locator('textarea, input').last()).toBeVisible();
+    await expect(page.locator('textarea')).toBeVisible();
     await expect(page.locator('header button').first()).toBeVisible();
   });
 });

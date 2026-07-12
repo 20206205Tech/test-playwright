@@ -13,6 +13,18 @@ function getAccessToken(): string {
       return '';
     }
     const state = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+    const authCookie = state.cookies?.find((x: any) => x.name === 'auth_tokens');
+    if (authCookie?.value) {
+      const candidates = [authCookie.value, decodeURIComponent(authCookie.value)];
+      for (const value of candidates) {
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed.access_token) return parsed.access_token;
+        } catch {}
+      }
+    }
+
     const origins = state.origins || [];
     for (const item of origins) {
       const authTokensItem = item.localStorage?.find((x: any) => x.name === 'auth_tokens');
